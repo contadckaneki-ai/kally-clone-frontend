@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import Banner from "@/components/Banner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -24,6 +25,7 @@ const servers = [
 ];
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Banner />
@@ -49,6 +51,7 @@ const Dashboard = () => {
                 transition={{ duration: 0.4, delay: 0.1 + i * 0.03 }}
                 whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => navigate(`/server/${i + 1}/settings`)}
                 className="flex items-center gap-3 rounded-lg border border-border/50 bg-card px-4 py-3 text-left card-hover group"
               >
                 <div className="h-10 w-10 shrink-0 rounded-full bg-muted" />
