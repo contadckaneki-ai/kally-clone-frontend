@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
   LayoutDashboard,
@@ -21,9 +21,12 @@ import {
   Pin,
   ChevronUp,
   ChevronDown,
+  Save,
+  RotateCcw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Banner from "@/components/Banner";
 
@@ -90,14 +93,48 @@ const servers: Record<string, string> = {
   "5": "UwU Hub",
 };
 
+interface SettingsState {
+  prefix: string;
+  botName: string;
+  deleteMessage: boolean;
+  slashCommands: boolean;
+}
+
+const defaultSettings: SettingsState = {
+  prefix: "k.",
+  botName: "kally",
+  deleteMessage: false,
+  slashCommands: true,
+};
+
 const ServerSettings = () => {
   const { id } = useParams();
   const [activeSection, setActiveSection] = useState("settings");
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-  const [prefix, setPrefix] = useState("k.");
-  const [botName, setBotName] = useState("kally");
-  const [deleteMessage, setDeleteMessage] = useState(false);
-  const [slashCommands, setSlashCommands] = useState(true);
+
+  const [savedSettings, setSavedSettings] = useState<SettingsState>({ ...defaultSettings });
+  const [currentSettings, setCurrentSettings] = useState<SettingsState>({ ...defaultSettings });
+
+  const hasChanges = useMemo(() => {
+    return (
+      currentSettings.prefix !== savedSettings.prefix ||
+      currentSettings.botName !== savedSettings.botName ||
+      currentSettings.deleteMessage !== savedSettings.deleteMessage ||
+      currentSettings.slashCommands !== savedSettings.slashCommands
+    );
+  }, [currentSettings, savedSettings]);
+
+  const handleSave = useCallback(() => {
+    setSavedSettings({ ...currentSettings });
+  }, [currentSettings]);
+
+  const handleDiscard = useCallback(() => {
+    setCurrentSettings({ ...savedSettings });
+  }, [savedSettings]);
+
+  const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
+    setCurrentSettings((prev) => ({ ...prev, [key]: value }));
+  };
 
   const serverName = servers[id || "1"] || "Servidor";
 
@@ -175,7 +212,7 @@ const ServerSettings = () => {
         </motion.aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -200,8 +237,8 @@ const ServerSettings = () => {
                       Prefixo
                     </label>
                     <Input
-                      value={prefix}
-                      onChange={(e) => setPrefix(e.target.value)}
+                      value={currentSettings.prefix}
+                      onChange={(e) => updateSetting("prefix", e.target.value)}
                       className="bg-background border-border"
                     />
                   </div>
@@ -210,8 +247,8 @@ const ServerSettings = () => {
                       Nome do CL
                     </label>
                     <Input
-                      value={botName}
-                      onChange={(e) => setBotName(e.target.value)}
+                      value={currentSettings.botName}
+                      onChange={(e) => updateSetting("botName", e.target.value)}
                       className="bg-background border-border"
                     />
                   </div>
@@ -228,7 +265,7 @@ const ServerSettings = () => {
                     Ao executar um comando, irei deletar a mensagem do usuário
                   </p>
                 </div>
-                <Switch checked={deleteMessage} onCheckedChange={setDeleteMessage} />
+                <Switch checked={currentSettings.deleteMessage} onCheckedChange={(v) => updateSetting("deleteMessage", v)} />
               </div>
 
               <div className="flex items-center justify-between p-6">
@@ -238,7 +275,7 @@ const ServerSettings = () => {
                     Permitir que usuários utilizem comandos com "/"
                   </p>
                 </div>
-                <Switch checked={slashCommands} onCheckedChange={setSlashCommands} />
+                <Switch checked={currentSettings.slashCommands} onCheckedChange={(v) => updateSetting("slashCommands", v)} />
               </div>
             </div>
 
@@ -269,6 +306,45 @@ const ServerSettings = () => {
           </motion.div>
         </main>
       </div>
+
+      {/* Unsaved changes bar */}
+      <AnimatePresence>
+        {hasChanges && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+          >
+            <div className="flex items-center gap-4 rounded-xl border border-border/50 bg-card/95 px-6 py-3 shadow-lg shadow-background/50 backdrop-blur-xl">
+              <div className="h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                Você tem alterações não salvas
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDiscard}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  Limpar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Save className="mr-1.5 h-3.5 w-3.5" />
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
