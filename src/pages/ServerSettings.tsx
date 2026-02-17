@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -23,6 +23,9 @@ import {
   ChevronDown,
   Save,
   RotateCcw,
+  Plus,
+  Search,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -93,6 +96,15 @@ const servers: Record<string, string> = {
   "5": "UwU Hub",
 };
 
+const mockRoles = [
+  { id: "1", name: "zamigaet svet" },
+  { id: "2", name: "Jockie Music" },
+  { id: "3", name: "Kally Premium" },
+  { id: "4", name: "Moderador" },
+  { id: "5", name: "Admin" },
+  { id: "6", name: "VIP" },
+];
+
 interface SettingsState {
   prefix: string;
   botName: string;
@@ -114,6 +126,38 @@ const ServerSettings = () => {
 
   const [savedSettings, setSavedSettings] = useState<SettingsState>({ ...defaultSettings });
   const [currentSettings, setCurrentSettings] = useState<SettingsState>({ ...defaultSettings });
+
+  // Permissions state
+  const [permissionsTab, setPermissionsTab] = useState<"roles" | "members">("roles");
+  const [showRolesDropdown, setShowRolesDropdown] = useState(false);
+  const [rolesSearch, setRolesSearch] = useState("");
+  const [addedRoles, setAddedRoles] = useState<{ id: string; name: string }[]>([
+    { id: "5", name: "Admin" },
+    { id: "4", name: "Moderador" },
+  ]);
+  const [showMemberSearch, setShowMemberSearch] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [addedMembers, setAddedMembers] = useState<{ id: string; name: string }[]>([
+    { id: "m1", name: "usuario#1234" },
+    { id: "m2", name: "jogador#5678" },
+  ]);
+  const rolesDropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredRoles = mockRoles.filter(
+    (r) =>
+      r.name.toLowerCase().includes(rolesSearch.toLowerCase()) &&
+      !addedRoles.some((ar) => ar.id === r.id)
+  );
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (rolesDropdownRef.current && !rolesDropdownRef.current.contains(e.target as Node)) {
+        setShowRolesDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const hasChanges = useMemo(() => {
     return (
@@ -142,6 +186,274 @@ const ServerSettings = () => {
     setCollapsedGroups((prev) => ({ ...prev, [title]: !prev[title] }));
   };
 
+  const renderSettingsContent = () => (
+    <>
+      <h1 className="font-display text-3xl font-bold">Configurações</h1>
+      <p className="mt-1 text-muted-foreground">Configure as principais informações de funcionamento</p>
+
+      <div className="mt-10">
+        <h2 className="font-display text-xl font-semibold">Configurações de comando</h2>
+        <div className="mt-6 rounded-lg border border-border/50 bg-card p-6">
+          <div className="border-l-2 border-primary pl-4">
+            <p className="text-sm font-medium">Configure o prefixo para comandos em mensagem</p>
+          </div>
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Prefixo</label>
+              <Input value={currentSettings.prefix} onChange={(e) => updateSetting("prefix", e.target.value)} className="bg-background border-border" />
+            </div>
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Nome do CL</label>
+              <Input value={currentSettings.botName} onChange={(e) => updateSetting("botName", e.target.value)} className="bg-background border-border" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-0 divide-y divide-border/50 rounded-lg border border-border/50 bg-card">
+        <div className="flex items-center justify-between p-6">
+          <div>
+            <h3 className="text-sm font-semibold">Deletar mensagem</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Ao executar um comando, irei deletar a mensagem do usuário</p>
+          </div>
+          <Switch checked={currentSettings.deleteMessage} onCheckedChange={(v) => updateSetting("deleteMessage", v)} />
+        </div>
+        <div className="flex items-center justify-between p-6">
+          <div>
+            <h3 className="text-sm font-semibold">Permitir comandos em Slash</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Permitir que usuários utilizem comandos com "/"</p>
+          </div>
+          <Switch checked={currentSettings.slashCommands} onCheckedChange={(v) => updateSetting("slashCommands", v)} />
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-lg border border-border/50 bg-card p-6">
+        <div className="border-l-2 border-primary pl-4">
+          <p className="text-sm font-medium">Os comandos da Kally funcionarão apenas em canais selecionados por você</p>
+        </div>
+        <div className="mt-6">
+          <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">Canais: 0</label>
+          <Select>
+            <SelectTrigger className="w-full max-w-xs bg-background border-border">
+              <SelectValue placeholder="Selecione canais" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="general">general</SelectItem>
+              <SelectItem value="commands">commands</SelectItem>
+              <SelectItem value="bot">bot</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderPermissionsContent = () => (
+    <>
+      <h1 className="font-display text-3xl font-bold">Permissões</h1>
+      <p className="mt-1 text-muted-foreground">Configure as permissões de acesso ao sistema</p>
+
+      {/* Tabs */}
+      <div className="mt-8 flex gap-6 border-b border-border/50">
+        <button
+          onClick={() => setPermissionsTab("roles")}
+          className={`pb-3 text-sm font-semibold transition-colors ${
+            permissionsTab === "roles"
+              ? "border-b-2 border-foreground text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Cargos
+        </button>
+        <button
+          onClick={() => setPermissionsTab("members")}
+          className={`pb-3 text-sm font-semibold transition-colors ${
+            permissionsTab === "members"
+              ? "border-b-2 border-foreground text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Membros
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {permissionsTab === "roles" ? (
+          <motion.div
+            key="roles"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="mt-6"
+          >
+            <div className="rounded-lg border border-border/50 bg-card p-6">
+              {/* Header with + button */}
+              <div className="relative" ref={rolesDropdownRef}>
+                <div className="flex items-center justify-between border-l-2 border-primary pl-4">
+                  <p className="text-sm font-medium">Lista de cargos</p>
+                  <button
+                    onClick={() => {
+                      setShowRolesDropdown(!showRolesDropdown);
+                      setRolesSearch("");
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-md border border-border/50 bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Dropdown */}
+                <AnimatePresence>
+                  {showRolesDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -5, scale: 0.97 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-border bg-card shadow-xl"
+                    >
+                      <div className="p-2">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            placeholder="Pesquisar"
+                            value={rolesSearch}
+                            onChange={(e) => setRolesSearch(e.target.value)}
+                            className="h-8 bg-background border-border pl-8 text-sm"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto px-1 pb-1">
+                        {filteredRoles.length === 0 ? (
+                          <p className="px-3 py-2 text-xs text-muted-foreground">Nenhum cargo encontrado</p>
+                        ) : (
+                          filteredRoles.map((role) => (
+                            <button
+                              key={role.id}
+                              onClick={() => {
+                                setAddedRoles((prev) => [...prev, role]);
+                                setShowRolesDropdown(false);
+                              }}
+                              className="flex w-full items-center rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                            >
+                              {role.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Added roles list */}
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {addedRoles.map((role) => (
+                  <div
+                    key={role.id}
+                    className="flex h-8 items-center rounded bg-muted/60"
+                  >
+                    <div className="h-full w-full rounded bg-muted animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="members"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="mt-6"
+          >
+            <div className="rounded-lg border border-border/50 bg-card p-6">
+              {/* Header with + button */}
+              <div className="flex items-center justify-between border-l-2 border-primary pl-4">
+                <p className="text-sm font-medium">Lista de membros</p>
+                <button
+                  onClick={() => {
+                    setShowMemberSearch(!showMemberSearch);
+                    setMemberSearch("");
+                  }}
+                  className="flex h-7 w-7 items-center justify-center rounded-md border border-border/50 bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Added members list (skeleton-like) */}
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {addedMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex h-8 items-center rounded bg-muted/60"
+                  >
+                    <div className="h-full w-full rounded bg-muted animate-pulse" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Member search panel */}
+              <AnimatePresence>
+                {showMemberSearch && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-4 rounded-lg border border-border/50 bg-background p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div />
+                        <button
+                          onClick={() => setShowMemberSearch(false)}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Nome de usuário ou ID"
+                          value={memberSearch}
+                          onChange={(e) => setMemberSearch(e.target.value)}
+                          className="bg-card border-border"
+                          autoFocus
+                        />
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="shrink-0 border-border"
+                          onClick={() => {
+                            if (memberSearch.trim()) {
+                              setAddedMembers((prev) => [
+                                ...prev,
+                                { id: `m${Date.now()}`, name: memberSearch.trim() },
+                              ]);
+                              setMemberSearch("");
+                              setShowMemberSearch(false);
+                            }
+                          }}
+                        >
+                          <Search className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Banner />
@@ -165,13 +477,10 @@ const ServerSettings = () => {
           className="hidden w-56 shrink-0 border-r border-border/50 bg-card/50 md:block"
         >
           <div className="flex flex-col h-full">
-            {/* Server name */}
             <div className="flex items-center gap-3 border-b border-border/50 px-4 py-4">
               <div className="h-8 w-8 shrink-0 rounded-full bg-muted" />
               <span className="truncate text-sm font-medium">{serverName}</span>
             </div>
-
-            {/* Nav items */}
             <div className="flex-1 overflow-y-auto py-2">
               {sidebarGroups.map((group, gi) => (
                 <div key={gi} className="mb-1">
@@ -214,95 +523,13 @@ const ServerSettings = () => {
         {/* Main content */}
         <main className="flex-1 overflow-y-auto pb-20">
           <motion.div
+            key={activeSection}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="mx-auto max-w-4xl px-6 py-10 md:px-12"
           >
-            <h1 className="font-display text-3xl font-bold">Configurações</h1>
-            <p className="mt-1 text-muted-foreground">Configure as principais informações de funcionamento</p>
-
-            {/* Command settings */}
-            <div className="mt-10">
-              <h2 className="font-display text-xl font-semibold">Configurações de comando</h2>
-
-              <div className="mt-6 rounded-lg border border-border/50 bg-card p-6">
-                <div className="border-l-2 border-primary pl-4">
-                  <p className="text-sm font-medium">Configure o prefixo para comandos em mensagem</p>
-                </div>
-
-                <div className="mt-6 grid gap-6 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                      Prefixo
-                    </label>
-                    <Input
-                      value={currentSettings.prefix}
-                      onChange={(e) => updateSetting("prefix", e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                      Nome do CL
-                    </label>
-                    <Input
-                      value={currentSettings.botName}
-                      onChange={(e) => updateSetting("botName", e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Toggle settings */}
-            <div className="mt-6 space-y-0 divide-y divide-border/50 rounded-lg border border-border/50 bg-card">
-              <div className="flex items-center justify-between p-6">
-                <div>
-                  <h3 className="text-sm font-semibold">Deletar mensagem</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Ao executar um comando, irei deletar a mensagem do usuário
-                  </p>
-                </div>
-                <Switch checked={currentSettings.deleteMessage} onCheckedChange={(v) => updateSetting("deleteMessage", v)} />
-              </div>
-
-              <div className="flex items-center justify-between p-6">
-                <div>
-                  <h3 className="text-sm font-semibold">Permitir comandos em Slash</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Permitir que usuários utilizem comandos com "/"
-                  </p>
-                </div>
-                <Switch checked={currentSettings.slashCommands} onCheckedChange={(v) => updateSetting("slashCommands", v)} />
-              </div>
-            </div>
-
-            {/* Channel selection */}
-            <div className="mt-6 rounded-lg border border-border/50 bg-card p-6">
-              <div className="border-l-2 border-primary pl-4">
-                <p className="text-sm font-medium">
-                  Os comandos da Kally funcionarão apenas em canais selecionados por você
-                </p>
-              </div>
-
-              <div className="mt-6">
-                <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Canais: 0
-                </label>
-                <Select>
-                  <SelectTrigger className="w-full max-w-xs bg-background border-border">
-                    <SelectValue placeholder="Selecione canais" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">general</SelectItem>
-                    <SelectItem value="commands">commands</SelectItem>
-                    <SelectItem value="bot">bot</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            {activeSection === "permissions" ? renderPermissionsContent() : renderSettingsContent()}
           </motion.div>
         </main>
       </div>
