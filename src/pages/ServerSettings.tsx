@@ -143,6 +143,13 @@ const ServerSettings = () => {
   ]);
   const rolesDropdownRef = useRef<HTMLDivElement>(null);
 
+  // URI Protection state
+  const [uriProtectionEnabled, setUriProtectionEnabled] = useState(false);
+  const [uriAccount, setUriAccount] = useState("");
+  const [uriOriginal, setUriOriginal] = useState("");
+  const [uriLogChannel, setUriLogChannel] = useState("disabled");
+  const [uriPunishment, setUriPunishment] = useState("remove-roles");
+
   const filteredRoles = mockRoles.filter(
     (r) =>
       r.name.toLowerCase().includes(rolesSearch.toLowerCase()) &&
@@ -454,6 +461,124 @@ const ServerSettings = () => {
     </>
   );
 
+  const renderUriProtectionContent = () => (
+    <>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Proteção de Url</h1>
+          <p className="mt-1 text-muted-foreground">
+            Mantenha a url do seu servidor protegida e evite que pessoas má intencionadas tomem posse.
+          </p>
+        </div>
+        <Switch checked={uriProtectionEnabled} onCheckedChange={setUriProtectionEnabled} />
+      </div>
+
+      <div className="relative mt-8">
+        {/* Overlay when disabled */}
+        <AnimatePresence>
+          {!uriProtectionEnabled && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/60 backdrop-blur-sm"
+            >
+              <div className="rounded-xl border border-border/50 bg-card p-8 text-center shadow-xl max-w-sm">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <Link2 className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="font-display text-lg font-bold">Proteção De Url</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Mantenha a url do seu servidor protegida e evite que pessoas má intencionadas tomem posse.
+                </p>
+                <Button
+                  onClick={() => setUriProtectionEnabled(true)}
+                  className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  Ativar plugin
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="space-y-6">
+          {/* Conta */}
+          <div className="rounded-lg border border-border/50 bg-card p-6">
+            <div className="border-l-2 border-primary pl-4 flex items-center gap-2">
+              <span className="rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">New</span>
+              <p className="text-sm font-medium">Conta (Veja nosso tutorial no servidor de suporte em caso de dúvidas)</p>
+            </div>
+            <div className="mt-4">
+              <Input
+                value={uriAccount}
+                onChange={(e) => setUriAccount(e.target.value)}
+                className="bg-background border-border max-w-lg"
+                disabled={!uriProtectionEnabled}
+              />
+            </div>
+          </div>
+
+          {/* URL Original */}
+          <div className="rounded-lg border border-border/50 bg-card p-6">
+            <div className="border-l-2 border-primary pl-4">
+              <p className="text-sm font-bold">URL Original</p>
+            </div>
+            <div className="mt-4 flex items-center gap-0">
+              <span className="rounded-l-md border border-r-0 border-border bg-muted px-3 py-2 text-sm text-muted-foreground">discord.gg/</span>
+              <Input
+                value={uriOriginal}
+                onChange={(e) => setUriOriginal(e.target.value)}
+                className="rounded-l-none bg-background border-border max-w-xs"
+                disabled={!uriProtectionEnabled}
+              />
+            </div>
+          </div>
+
+          {/* Canal de logs */}
+          <div className="rounded-lg border border-border/50 bg-card p-6">
+            <div className="border-l-2 border-primary pl-4">
+              <p className="text-sm font-medium">Defina um canal de logs para a proteção</p>
+            </div>
+            <div className="mt-4">
+              <Select value={uriLogChannel} onValueChange={setUriLogChannel} disabled={!uriProtectionEnabled}>
+                <SelectTrigger className="w-full max-w-xs bg-background border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="disabled">Desativado</SelectItem>
+                  <SelectItem value="general">general</SelectItem>
+                  <SelectItem value="logs">logs</SelectItem>
+                  <SelectItem value="mod-logs">mod-logs</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Punição */}
+          <div className="rounded-lg border border-border/50 bg-card p-6">
+            <div className="border-l-2 border-primary pl-4">
+              <p className="text-sm font-medium">Punição aplicada ao alterar a url do servidor</p>
+            </div>
+            <div className="mt-4">
+              <Select value={uriPunishment} onValueChange={setUriPunishment} disabled={!uriProtectionEnabled}>
+                <SelectTrigger className="w-full max-w-xs bg-background border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="remove-roles">Remover todos os cargos</SelectItem>
+                  <SelectItem value="kick">Expulsar do servidor</SelectItem>
+                  <SelectItem value="ban">Banir do servidor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Banner />
@@ -529,7 +654,11 @@ const ServerSettings = () => {
             transition={{ duration: 0.5 }}
             className="mx-auto max-w-4xl px-6 py-10 md:px-12"
           >
-            {activeSection === "permissions" ? renderPermissionsContent() : renderSettingsContent()}
+            {activeSection === "permissions"
+              ? renderPermissionsContent()
+              : activeSection === "uri-protection"
+              ? renderUriProtectionContent()
+              : renderSettingsContent()}
           </motion.div>
         </main>
       </div>
